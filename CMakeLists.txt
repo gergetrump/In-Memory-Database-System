@@ -132,6 +132,7 @@ set(SRC_CC
         "${CMAKE_SOURCE_DIR}/imlab/algebra/BinaryExpression.cc"
         "${CMAKE_SOURCE_DIR}/imlab/algebra/Const.cc"
         "${CMAKE_SOURCE_DIR}/imlab/algebra/Expression.cc"
+        "${CMAKE_SOURCE_DIR}/imlab/algebra/GroupBy.cc"
         "${CMAKE_SOURCE_DIR}/imlab/algebra/InnerJoin.cc"
         "${CMAKE_SOURCE_DIR}/imlab/algebra/IU.cc"
         "${CMAKE_SOURCE_DIR}/imlab/algebra/IURef.cc"
@@ -171,6 +172,7 @@ set(TEST_CC
         "${CMAKE_SOURCE_DIR}/test/parser/QueryParserTest.cc"
         "${CMAKE_SOURCE_DIR}/test/parser/SchemaParserTest.cc"
         "${CMAKE_SOURCE_DIR}/test/semana/SemanticAnalysisTest.cc"
+        "${CMAKE_SOURCE_DIR}/test/query/AggregateAndBuildSideTest.cc"
 )
 
 set(TPCC_TOOLS_CC
@@ -180,6 +182,7 @@ set(TPCC_TOOLS_CC
 set(TOOLS_CC
         "${CMAKE_SOURCE_DIR}/tools/tpcc.cc"
         "${CMAKE_SOURCE_DIR}/tools/imlabdb.cc"
+        "${CMAKE_SOURCE_DIR}/tools/bench.cc"
 )
 
 # ---------------------------------------------------------------------------
@@ -235,6 +238,9 @@ target_link_libraries(tpcc imlab gflags Threads::Threads)
 
 add_executable(imlabdb tools/imlabdb.cc)
 target_link_libraries(imlabdb imlab)
+
+add_executable(bench tools/bench.cc)
+target_link_libraries(bench imlab)
 
 # ---------------------------------------------------------------------------
 # Tests

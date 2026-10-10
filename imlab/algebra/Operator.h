@@ -9,6 +9,7 @@
 #include "imlab/algebra/IU.h"
 #include "imlab/optimizer/OptimizerPass.h"
 #include <memory>
+#include <optional>
 #include <set>
 #include "imlab/types/Types.h"
 #include "imlab/Database.h"
@@ -30,6 +31,7 @@ class Operator {
         Select,
         TableScan,
         SubqueryScan,
+        GroupBy,
     };
     enum class OperatorCategory : unsigned {
         Unary,
@@ -67,7 +69,17 @@ class Operator {
     /// Perform optimization
     virtual void optimize(std::unique_ptr<Operator>& thisRef, OptimizerPass pass) = 0;
 
+    /// Known input cardinality, when the operator can see it
+    virtual std::optional<size_t> estimateCardinality() const { return std::nullopt; }
+
     virtual const std::map<const IU*, std::string>& getVarNames() const { return varNames_; }
+
+    static int& codegenSerial() {
+        static int value = 0;
+        return value;
+    }
+    static void resetCodegenIds() { codegenSerial() = 0; }
+    static int nextCodegenId() { return codegenSerial()++; }
 
     std::string getOperatorTypeName() const {
         switch (this->getOperatorType()) {
@@ -75,6 +87,7 @@ class Operator {
             case OperatorType::Select: return "Select";
             case OperatorType::InnerJoin: return "InnerJoin";
             case OperatorType::Print: return "Print";
+            case OperatorType::GroupBy: return "GroupBy";
             default: return "Unknown Operator";
         }
     }

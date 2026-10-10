@@ -86,9 +86,8 @@ void CopyTableStatement::run(Database& db) {
 
 
     CodeGenHelper helper(code.str());
-    helper.compile();
-    using Function = void(*)(Database&);
-    Function func = reinterpret_cast<Function>(helper.loadFunction());
+    using Function = void (*)(Database&);
+    auto* func = reinterpret_cast<Function>(helper.getExecute().func);
     func(db);
 }
 

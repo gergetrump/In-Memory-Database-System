@@ -91,6 +91,10 @@ imlab::parser::Parser::symbol_type yylex(imlab::parser::ParseContext& sc);
 %token SELECT           "select"
 %token WHERE            "where"
 %token AND              "and"
+%token GROUP            "group"
+%token BY               "by"
+%token COUNT            "count"
+%token SUM              "sum"
 %token EQUALS           "equals"
 %token DOT              "dot"
 %token STAR             "star"
@@ -116,6 +120,9 @@ imlab::parser::Parser::symbol_type yylex(imlab::parser::ParseContext& sc);
 %type <ASTPtr> Literal
 %type <imlab::parser::Column> Column
 %type <ASTPtrVector> SelectList
+%type <ASTPtrVector> SelectItemList
+%type <ASTPtr> SelectItem
+%type <ASTPtrVector> OptionalGroupBy
 %type <ASTPtrVector> OptionalWhereClause
 %type <ColumnListType> ColumnList
 %type <ColumnVector> OptionalPrimaryKeyDefinition
@@ -303,16 +310,16 @@ ColumnConstraint:
     ;
 
 Query:
-    SELECT SelectList FROM TableRefList OptionalWhereClause SEMICOLON
+    SELECT SelectList FROM TableRefList OptionalWhereClause OptionalGroupBy SEMICOLON
     {
-        $$ = std::make_unique<imlab::parser::Query>(std::move($2), std::move($4), std::move($5));
+        $$ = std::make_unique<imlab::parser::Query>(std::move($2), std::move($4), std::move($5), std::move($6));
     }
     ;
 
 Subquery:
-    SELECT SelectList FROM TableRefList OptionalWhereClause
+    SELECT SelectList FROM TableRefList OptionalWhereClause OptionalGroupBy
     {
-        $$ = std::make_unique<imlab::parser::Query>(std::move($2), std::move($4), std::move($5));
+        $$ = std::make_unique<imlab::parser::Query>(std::move($2), std::move($4), std::move($5), std::move($6));
     }
     ;
 
@@ -322,9 +329,48 @@ SelectList:
     {
         $$ = ASTPtrVector();
     }
-  | ColIdList
+  | SelectItemList
     {
         $$ = std::move($1);
+    }
+    ;
+
+SelectItemList:
+    SelectItemList COMMA SelectItem
+    {
+        $1.push_back(std::move($3));
+        $$ = std::move($1);
+    }
+  | SelectItem
+    {
+        $$ = ASTPtrVector();
+        $$.push_back(std::move($1));
+    }
+    ;
+
+SelectItem:
+    ColId
+    {
+        $$ = std::move($1);
+    }
+  | COUNT LPAREN STAR RPAREN
+    {
+        $$ = std::make_unique<imlab::parser::Aggregate>(imlab::parser::Aggregate::CountStar, nullptr);
+    }
+  | SUM LPAREN ColId RPAREN
+    {
+        $$ = std::make_unique<imlab::parser::Aggregate>(imlab::parser::Aggregate::Sum, std::move($3));
+    }
+    ;
+
+OptionalGroupBy:
+    GROUP BY ColIdList
+    {
+        $$ = std::move($3);
+    }
+  | %empty
+    {
+        $$ = ASTPtrVector();
     }
     ;
 

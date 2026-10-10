@@ -32,6 +32,8 @@ class SemanticAnalysis {
 
     std::unique_ptr<statement::Statement> analyzeSelectStmt(const parser::Query&, Database&);
 
+    std::unique_ptr<statement::Statement> analyzeAggregateStmt(const parser::Query&, Database&);
+
     std::unique_ptr<algebra::Operator> analyzeSubquery(const parser::Query& query, Database& db, algebra::Scope& scope);
 
     std::unique_ptr<algebra::Operator> analyzeSubqueryRef(const parser::SubqueryRef& subqueryRef, Database& db, algebra::Scope& parentScope);

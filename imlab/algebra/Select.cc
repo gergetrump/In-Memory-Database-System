@@ -57,6 +57,10 @@ void Select::consume(std::ostream& code, const Operator* child) {
 
 
 
+std::optional<size_t> Select::estimateCardinality() const {
+    return input_ ? input_->estimateCardinality() : std::nullopt;
+}
+
 void Select::optimize(std::unique_ptr<Operator>& thisRef, imlab::OptimizerPass pass) {
 
     UnaryOperator::optimize(thisRef, pass);

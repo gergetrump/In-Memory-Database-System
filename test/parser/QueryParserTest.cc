@@ -216,4 +216,26 @@ TEST(ParserTest, QuerySingleTableWithMultipleSelections) {
     validateBinaryExpression(queryPtr->getWhere()[1], [](const imlab::parser::BinaryExpression* ast) { validateColdId(ast->getLeft(), "s", "matrnr"); }, [](const imlab::parser::BinaryExpression* ast) { validateLiteral(ast->getRight(), "1234"); });
 }
 
+TEST(ParserTest, QueryGroupByCountAndSum) {
+    std::istringstream in("select k, count(*), sum(v) from t where t.k = 1 group by k;");
+    ParseContext spc;
+    auto parseTrees = spc.Parse(in);
+    ASSERT_EQ(parseTrees.size(), 1);
+    auto queryPtr = static_cast<const imlab::parser::Query*>(parseTrees[0].get());
+
+    ASSERT_EQ(queryPtr->getTargets().size(), 3);
+    validateColdId(queryPtr->getTargets()[0], "", "k");
+    ASSERT_EQ(queryPtr->getTargets()[1]->getType(), imlab::parser::AST::AggregateType);
+    auto* count = static_cast<const imlab::parser::Aggregate*>(queryPtr->getTargets()[1]);
+    ASSERT_EQ(count->getKind(), imlab::parser::Aggregate::CountStar);
+    ASSERT_EQ(queryPtr->getTargets()[2]->getType(), imlab::parser::AST::AggregateType);
+    auto* sum = static_cast<const imlab::parser::Aggregate*>(queryPtr->getTargets()[2]);
+    ASSERT_EQ(sum->getKind(), imlab::parser::Aggregate::Sum);
+    validateColdId(sum->getArgument(), "", "v");
+
+    ASSERT_EQ(queryPtr->getGroupBy().size(), 1);
+    validateColdId(queryPtr->getGroupBy()[0], "", "k");
+    ASSERT_EQ(queryPtr->getWhere().size(), 1);
+}
+
 } // namespace test

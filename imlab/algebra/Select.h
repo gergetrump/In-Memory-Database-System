@@ -44,6 +44,8 @@ class Select final : public UnaryOperator {
    /// Perform optimization
    void optimize(std::unique_ptr<Operator>& thisRef, imlab::OptimizerPass pass) override;
 
+   std::optional<size_t> estimateCardinality() const override;
+
    const Expression* getExpression() const {
       return expression_.get();
    }

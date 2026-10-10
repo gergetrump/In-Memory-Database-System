@@ -7,7 +7,7 @@
 1. Flex and Bison build an AST.
 2. Semantic analysis checks that tables and columns exist and builds an operator tree.
 3. `QueryStatement::run` runs predicate pushdown, then `prepare`, then `produce`.
-4. `CodeGenHelper` writes the generated C++ to `/tmp/code.cc`, compiles it to `/tmp/code.so` against this source tree and `libimlab`, and calls `execute` through `dlopen`.
+4. `CodeGenHelper` writes the generated C++ to `/tmp/code.cc`, compiles it against this source tree and `libimlab`, and calls `execute` through `dlopen`. The shared library is named from a hash of the generated source and kept for the process. A later query that emits the same source skips the compiler. Operator names use a counter that resets for each query, so the same plan produces the same source.
 
 `COPY` uses the same compile-and-load path. The generated function reads the file and inserts rows.
 
@@ -41,6 +41,16 @@ The generated join is a hash join. The left input is the build side: each row is
 
 Rows are scanned in input order, and the hash chains keep that order, so matches come out in build-side order. The map is built once per query, in the generated function, and dropped when `execute` returns.
 
+After predicate pushdown, a join whose right input has fewer rows than its left input swaps the two inputs. The estimate is the row count of the underlying scan, including rows a filter will reject. A side whose size is not a plain scan is left where it is. The equality is then oriented so the build key belongs to the new left input. `./build/bench` can turn the pass off to time both orientations.
+
+## Hash aggregation
+
+`GROUP BY` is a pipeline breaker above the scan, filter, or join. Integer group keys go into an `unordered_map`. `COUNT(*)` and `SUM` of an integer column update a state per group. After the input is consumed, the groups are sorted by key and emitted. `SUM` accumulates in 64 bits and throws if the result does not fit in the 32-bit integer type. An aggregate without `GROUP BY` is one group. An empty `SUM` returns 0. `GROUP BY` and aggregates in a subquery are rejected.
+
+## Benchmark
+
+`./build/bench` loads integer tables in memory, then runs a scan, a filter, a join, both join orientations, and a grouped `COUNT`/`SUM`. It records compile time and execute time from `QueryStatement`. The numbers in the README are one run of that binary on this machine.
+
 ## SQL subset
 
 ```text
@@ -52,11 +62,14 @@ CREATE TABLE name (
 
 COPY name FROM 'file' [DELIMITER '|'];
 
-SELECT * | column, ...
+SELECT * | column, ... | COUNT(*) | SUM(column)
 FROM table [alias] | (subquery) [alias], ...
-[WHERE condition AND ...];
+[WHERE condition AND ...]
+[GROUP BY column, ...];
 ```
 
 Column types are `integer`, `char(n)`, `varchar(n)`, `numeric(precision, scale)`, and `timestamp`. Every column is `NOT NULL`. The copy delimiter defaults to `|`.
 
 A condition is `column = column` or `column = literal`. Literals are integers and strings. A comma in `FROM` is an inner join. An equality that references both inputs becomes the join key.
+
+`COUNT(*)` and `SUM` accept integer columns. A selected column next to an aggregate has to appear in `GROUP BY`. `count`, `sum`, `group`, and `by` are reserved words.

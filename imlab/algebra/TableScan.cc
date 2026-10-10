@@ -6,7 +6,7 @@
 //---------------------------------------------------------------------------
 namespace imlab::algebra {
 //---------------------------------------------------------------------------
-TableScan::TableScan(const char* table, unsigned int id, const parser::Table& tableSchema, const std::vector<const IU*>& ius) : Operator(), table_(table), id_(id), tableSchema_(tableSchema), registeredIUs_(ius) {}
+TableScan::TableScan(const char* table, unsigned int id, const parser::Table& tableSchema, const std::vector<const IU*>& ius, size_t cardinality) : Operator(), table_(table), id_(id), tableSchema_(tableSchema), registeredIUs_(ius), cardinality_(cardinality) {}
 //---------------------------------------------------------------------------
 std::set<const IU*> TableScan::collectIUs() {
     std::set<const IU*> ius;

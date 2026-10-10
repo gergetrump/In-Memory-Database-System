@@ -47,3 +47,6 @@
 /compile_commands.json
 
 data/*.tbl
+
+# Temporary COPY input created by tests in the working directory
+/imlabtemp

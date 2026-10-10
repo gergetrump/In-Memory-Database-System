@@ -28,7 +28,7 @@ CreateTable::CreateTable(Table table) : AST(ASTType::CreateTableType), table(std
 {
 }
 //------------------------------------------------------------
-Query::Query(std::vector<std::unique_ptr<AST>> targets, std::vector<std::unique_ptr<AST>> from, std::vector<std::unique_ptr<AST>> where) : AST(ASTType::QueryType), targets(std::move(targets)), from(std::move(from)), where(std::move(where)){}
+Query::Query(std::vector<std::unique_ptr<AST>> targets, std::vector<std::unique_ptr<AST>> from, std::vector<std::unique_ptr<AST>> where, std::vector<std::unique_ptr<AST>> groupBy) : AST(ASTType::QueryType), targets(std::move(targets)), from(std::move(from)), where(std::move(where)), groupBy(std::move(groupBy)) {}
 //------------------------------------------------------------
 static vector<AST*> resolve(const std::vector<std::unique_ptr<AST>>& i) {
     std::vector<AST*> r;
@@ -41,6 +41,10 @@ std::vector<AST*> Query::getTargets() const { return resolve(targets); }
 std::vector<AST*> Query::getFrom() const { return resolve(from); }
 //------------------------------------------------------------
 std::vector<AST*> Query::getWhere() const { return resolve(where); }
+//------------------------------------------------------------
+std::vector<AST*> Query::getGroupBy() const { return resolve(groupBy); }
+//------------------------------------------------------------
+Aggregate::Aggregate(Aggregate::Kind kind, std::unique_ptr<AST> argument) : AST(ASTType::AggregateType), kind(kind), argument(std::move(argument)) {}
 //------------------------------------------------------------
 ColId::ColId(std::string table, std::string column) : AST(ASTType::ColIdType), table(std::move(table)), column(std::move(column)) {}
 //------------------------------------------------------------

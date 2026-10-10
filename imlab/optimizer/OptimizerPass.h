@@ -7,6 +7,7 @@ namespace imlab {
 /// Known optimizer passes
 enum class OptimizerPass : unsigned {
     PredicatePushdown,
+    BuildSideSelection,
 };
 //---------------------------------------------------------------------------
 } // namespace imlab

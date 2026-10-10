@@ -21,10 +21,11 @@ class TableScan final : public Operator {
     std::vector<const IU*> registeredIUs_;
 
     parser::Table tableSchema_;
+    size_t cardinality_ = 0;
 
     public:
     /// Constructor
-    TableScan(const char* table, unsigned id, const parser::Table& tableSchema, const std::vector<const IU*>& ius);
+    TableScan(const char* table, unsigned id, const parser::Table& tableSchema, const std::vector<const IU*>& ius, size_t cardinality = 0);
     /// Destructor
     ~TableScan() override = default;
 
@@ -52,6 +53,8 @@ class TableScan final : public Operator {
 
     /// Perform optimization
     void optimize(std::unique_ptr<Operator>& thisRef, imlab::OptimizerPass pass) override;
+
+    std::optional<size_t> estimateCardinality() const override { return cardinality_; }
 
     const std::vector<const IU*>& getRegisteredIUs() const {return registeredIUs_;}
 

@@ -121,6 +121,10 @@ loc.step ();
 "select"            { return Parser::make_SELECT(loc); }
 "where"             { return Parser::make_WHERE(loc); }
 "and"               { return Parser::make_AND(loc); }
+"group"             { return Parser::make_GROUP(loc); }
+"by"                { return Parser::make_BY(loc); }
+"count"             { return Parser::make_COUNT(loc); }
+"sum"               { return Parser::make_SUM(loc); }
 
 
 

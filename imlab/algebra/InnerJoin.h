@@ -46,6 +46,7 @@ class InnerJoin final : public BinaryOperator {
     bool leftTupleValid_ = false;
     const IU* leftJoinIU_;
     const IU* rightJoinIU_;
+    int codegenId_ = 0;
 
     std::map<const IU*, Value> combineTuples(
       const std::map<const IU*, Value>& leftTuple,

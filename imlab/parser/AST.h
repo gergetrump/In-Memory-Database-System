@@ -35,6 +35,7 @@ class AST {
         TableRefType,
         LiteralType,
         SubqueryRefType,
+        AggregateType,
     };
 
     protected:
@@ -119,7 +120,7 @@ class Query : public AST {
 
     public:
     /// Constructor
-    Query(std::vector<std::unique_ptr<AST>> targets, std::vector<std::unique_ptr<AST>> from, std::vector<std::unique_ptr<AST>> where);
+    Query(std::vector<std::unique_ptr<AST>> targets, std::vector<std::unique_ptr<AST>> from, std::vector<std::unique_ptr<AST>> where, std::vector<std::unique_ptr<AST>> groupBy);
     /// Destructor
     ~Query() override = default;
 
@@ -129,16 +130,37 @@ class Query : public AST {
     std::vector<AST*> getFrom() const;
     /// get conditions
     std::vector<AST*> getWhere() const;
+    /// Get the GROUP BY columns
+    std::vector<AST*> getGroupBy() const;
 
     private:
-    /// the targets of the query (class ColId)
+    /// the targets of the query (class ColId or Aggregate)
     std::vector<std::unique_ptr<AST>> targets;
     /// the tables of the query (class TableRef)
     std::vector<std::unique_ptr<AST>> from;
     /// the conditions of the query (class BinaryExpression)
     std::vector<std::unique_ptr<AST>> where;
+    /// the GROUP BY columns (class ColId)
+    std::vector<std::unique_ptr<AST>> groupBy;
 };
 
+//------------------------------------------------------------
+class Aggregate : public AST {
+    friend semana::SemanticAnalysis;
+
+    public:
+    enum Kind { CountStar, Sum };
+
+    Aggregate(Kind kind, std::unique_ptr<AST> argument);
+    ~Aggregate() override = default;
+
+    Kind getKind() const { return kind; }
+    AST* getArgument() const { return argument.get(); }
+
+    private:
+    Kind kind;
+    std::unique_ptr<AST> argument;
+};
 //------------------------------------------------------------
 class ColId : public AST {
     friend semana::SemanticAnalysis;

@@ -4,8 +4,28 @@
 #include "BinaryExpression.h"
 #include "IURef.h"
 #include "Select.h"
+#include <utility>
 //---------------------------------------------------------------------------
 namespace imlab::algebra {
+namespace {
+bool alignJoinPredicate(Expression& expr, const std::set<const IU*>& leftIUs) {
+    auto* binary = dynamic_cast<BinaryExpression*>(&expr);
+    if (!binary || binary->getOp() != BinaryExpression::Op::Equal) {
+        return false;
+    }
+    bool keyIsOnLeft = false;
+    for (const IU* iu : binary->left_->collectIUs()) {
+        keyIsOnLeft = leftIUs.find(iu) != leftIUs.end();
+        if (!keyIsOnLeft) {
+            break;
+        }
+    }
+    if (!keyIsOnLeft) {
+        std::swap(binary->left_, binary->right_);
+    }
+    return true;
+}
+} // namespace
 //---------------------------------------------------------------------------
 InnerJoin::InnerJoin(std::unique_ptr<Operator> left, std::unique_ptr<Operator> right, std::unique_ptr<algebra::Expression> condition) : BinaryOperator(std::move(left), std::move(right)), condition_(std::move(condition)) {}
 //---------------------------------------------------------------------------
@@ -36,6 +56,7 @@ void InnerJoin::prepare(const std::set<const IU*>& required, Operator* consumer)
     if (!binExpr || binExpr->getOp() != BinaryExpression::Op::Equal) {
         throw RuntimeException("Only InnerJoin with Equal supported");
     }
+    alignJoinPredicate(*condition_, left_->collectIUs());
 
     auto leftExpr = binExpr->left_.get();
     auto rightExpr = binExpr->right_.get();
@@ -62,11 +83,12 @@ void InnerJoin::prepare(const std::set<const IU*>& required, Operator* consumer)
 void InnerJoin::produce(std::ostream& code) {
     code << "   // start InnerJoin::produce\n";
 
-    code << "   LazyMultiMap<Key<imlab::Value>, std::vector<imlab::Value>> hashTable_" << this << ";\n";
+    codegenId_ = Operator::nextCodegenId();
+    code << "   LazyMultiMap<Key<imlab::Value>, std::vector<imlab::Value>> hashTable_" << codegenId_ << ";\n";
 
     left_->produce(code);
 
-    code << "   hashTable_" << this << ".finalize();\n";
+    code << "   hashTable_" << codegenId_ << ".finalize();\n";
 
     right_->produce(code);
 
@@ -86,14 +108,14 @@ void InnerJoin::consume(std::ostream& code, const Operator* child) {
         for (const auto& [iu, varName] : leftVarNames) {
             code << "          values.push_back(" << varName << ");\n";
         }
-        code << "          hashTable_" << this << ".insert({key, values});\n";
+        code << "          hashTable_" << codegenId_ << ".insert({key, values});\n";
         code << "       }\n";
 
     } else if (child == right_.get()) {
 
         code << "       {\n";
         code << "          Key<imlab::Value> key(" << varNames_[rightJoinIU_] << ");\n";
-        code << "          auto matches = hashTable_" << this << ".equal_range(key);\n";
+        code << "          auto matches = hashTable_" << codegenId_ << ".equal_range(key);\n";
         code << "          for (auto match = matches.first; match != matches.second; ++match) {\n";
 
         const auto& leftVarNames = left_->getVarNames();
@@ -215,6 +237,15 @@ bool InnerJoin::pushPredicate(std::unique_ptr<Expression>& predicate, OptimizerP
 //---------------------------------------------------------------------------
 void InnerJoin::optimize(std::unique_ptr<Operator>& thisRef, imlab::OptimizerPass pass) {
     BinaryOperator::optimize(thisRef, pass);
+    if (pass != imlab::OptimizerPass::BuildSideSelection || !condition_ || !left_ || !right_) {
+        return;
+    }
+    const auto leftRows = left_->estimateCardinality();
+    const auto rightRows = right_->estimateCardinality();
+    if (!leftRows || !rightRows || *rightRows >= *leftRows) {
+        return;
+    }
+    std::swap(left_, right_);
 }
 //---------------------------------------------------------------------------
 } // namespace imlab::algebra

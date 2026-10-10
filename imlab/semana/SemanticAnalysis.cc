@@ -11,11 +11,13 @@
 #include <fmt/format.h>
 #include <imlab/algebra/BinaryExpression.h>
 #include <imlab/algebra/Const.h>
+#include <imlab/algebra/GroupBy.h>
 #include <imlab/algebra/InnerJoin.h>
 #include <imlab/algebra/IURef.h>
 #include <imlab/algebra/Print.h>
 #include <imlab/algebra/Select.h>
 #include <imlab/algebra/TableScan.h>
+#include <set>
 #include <imlab/statement/QueryStatement.h>
 #include "imlab/parser/AST.h"
 //------------------------------------------------------------
@@ -84,7 +86,104 @@ std::unique_ptr<statement::Statement> SemanticAnalysis::analyzeCopyTable(const p
     return std::make_unique<statement::CopyTableStatement>(ast.table, ast.file, ast.delimiter);
 }
 //------------------------------------------------------------
+namespace {
+bool queryUsesAggregation(const parser::Query& query) {
+    if (!query.getGroupBy().empty()) {
+        return true;
+    }
+    for (const auto* target : query.getTargets()) {
+        if (target->getType() == parser::AST::AggregateType) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string uniqueOutputName(const std::string& base, std::set<std::string>& used) {
+    std::string name = base;
+    int suffix = 2;
+    while (used.count(name) != 0) {
+        name = base + "_" + std::to_string(suffix++);
+    }
+    used.insert(name);
+    return name;
+}
+} // namespace
+
+std::unique_ptr<statement::Statement> SemanticAnalysis::analyzeAggregateStmt(const parser::Query& query, Database& db) {
+    if (query.getTargets().empty()) {
+        throw RuntimeException("SELECT * is not supported with GROUP BY or aggregates");
+    }
+
+    algebra::Scope queryScope;
+    auto tree = analyzeFrom(query.getFrom(), db, queryScope);
+    tree = analyzeWhere(query.getWhere(), db, queryScope, std::move(tree));
+
+    std::vector<const algebra::IU*> keys;
+    std::set<const algebra::IU*> keySet;
+    for (const auto* item : query.getGroupBy()) {
+        if (item->getType() != parser::AST::ColIdType) {
+            throw RuntimeException("GROUP BY supports integer columns only");
+        }
+        auto expr = analyzeColId(static_cast<const parser::ColId&>(*item), db, queryScope);
+        const auto* iu = static_cast<algebra::IURef*>(expr.get())->getIU();
+        if (iu->type_.getClass() != Type::kInteger) {
+            throw RuntimeException("GROUP BY supports integer columns only");
+        }
+        if (!keySet.insert(iu).second) {
+            throw RuntimeException("Duplicate GROUP BY column '" + iu->column_ + "'");
+        }
+        keys.push_back(iu);
+    }
+
+    auto groupBy = std::make_unique<algebra::GroupBy>(std::move(tree), std::move(keys));
+    std::vector<algebra::Print::Output> outputCols;
+    std::set<std::string> usedNames;
+
+    for (const auto* item : query.getTargets()) {
+        if (item->getType() == parser::AST::ColIdType) {
+            const auto& colId = static_cast<const parser::ColId&>(*item);
+            auto expr = analyzeColId(colId, db, queryScope);
+            const auto* iu = static_cast<algebra::IURef*>(expr.get())->getIU();
+            if (keySet.find(iu) == keySet.end()) {
+                throw RuntimeException("Column '" + iu->column_ + "' must appear in GROUP BY or inside an aggregate");
+            }
+            const std::string name = uniqueOutputName(colId.getColumn(), usedNames);
+            outputCols.push_back({name, std::make_unique<algebra::IURef>(iu)});
+        } else if (item->getType() == parser::AST::AggregateType) {
+            const auto& aggregate = static_cast<const parser::Aggregate&>(*item);
+            if (aggregate.getKind() == parser::Aggregate::CountStar) {
+                const std::string name = uniqueOutputName("count", usedNames);
+                const auto* result = groupBy->addCount(name);
+                outputCols.push_back({name, std::make_unique<algebra::IURef>(result)});
+            } else {
+                const auto* argument = aggregate.getArgument();
+                if (!argument || argument->getType() != parser::AST::ColIdType) {
+                    throw RuntimeException("SUM requires an integer column");
+                }
+                auto expr = analyzeColId(static_cast<const parser::ColId&>(*argument), db, queryScope);
+                const auto* iu = static_cast<algebra::IURef*>(expr.get())->getIU();
+                if (iu->type_.getClass() != Type::kInteger) {
+                    throw RuntimeException("SUM requires an integer column");
+                }
+                const std::string name = uniqueOutputName("sum_" + iu->column_, usedNames);
+                const auto* result = groupBy->addSum(iu, name);
+                outputCols.push_back({name, std::make_unique<algebra::IURef>(result)});
+            }
+        } else {
+            throw RuntimeException("Unsupported select item");
+        }
+    }
+
+    auto printOp = std::make_unique<algebra::Print>(std::move(groupBy), std::move(outputCols));
+    return std::make_unique<statement::QueryStatement>(std::move(printOp));
+}
+
 std::unique_ptr<statement::Statement> SemanticAnalysis::analyzeSelectStmt(const parser::Query& query, Database& db) {
+    if (queryUsesAggregation(query)) {
+        return analyzeAggregateStmt(query, db);
+    }
+
     algebra::Scope queryScope;
     auto tree = analyzeSubquery(query, db, queryScope);
 
@@ -124,6 +223,9 @@ std::unique_ptr<statement::Statement> SemanticAnalysis::analyzeSelectStmt(const 
 }
 //------------------------------------------------------------
 std::unique_ptr<algebra::Operator> SemanticAnalysis::analyzeSubquery(const parser::Query& query, Database& db, algebra::Scope& scope) {
+    if (queryUsesAggregation(query)) {
+        throw RuntimeException("GROUP BY and aggregates are not supported in subqueries");
+    }
 
     auto tree = analyzeFrom(query.getFrom(), db, scope);
 
@@ -217,7 +319,7 @@ std::unique_ptr<algebra::Operator> SemanticAnalysis::analyzeTableRef(const parse
     }
 
     scope.addTable(tableName, alias, iuPtrs);
-    auto tableScan = std::make_unique<algebra::TableScan>(tableName.c_str(), 0, table.getSchema(), iuPtrs);
+    auto tableScan = std::make_unique<algebra::TableScan>(tableName.c_str(), 0, table.getSchema(), iuPtrs, table.getRows().size());
 
     return tableScan;
 }
