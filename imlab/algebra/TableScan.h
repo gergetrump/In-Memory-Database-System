@@ -9,6 +9,7 @@
 #include <vector>
 //---------------------------------------------------------------------------
 namespace imlab::algebra {
+class Const;
 //---------------------------------------------------------------------------
 class TableScan final : public Operator {
     protected:
@@ -22,6 +23,8 @@ class TableScan final : public Operator {
 
     parser::Table tableSchema_;
     size_t cardinality_ = 0;
+    std::unique_ptr<Expression> indexPredicate_;
+    std::vector<const Const*> indexKeyOrder_;
 
     public:
     /// Constructor
@@ -54,7 +57,9 @@ class TableScan final : public Operator {
     /// Perform optimization
     void optimize(std::unique_ptr<Operator>& thisRef, imlab::OptimizerPass pass) override;
 
-    std::optional<size_t> estimateCardinality() const override { return cardinality_; }
+    std::optional<size_t> estimateCardinality() const override;
+
+    bool pushPredicate(std::unique_ptr<Expression>& predicate, OptimizerPass pass) override;
 
     const std::vector<const IU*>& getRegisteredIUs() const {return registeredIUs_;}
 

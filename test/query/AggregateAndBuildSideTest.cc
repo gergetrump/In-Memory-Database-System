@@ -103,5 +103,49 @@ TEST(QueryFeatures, BuildSmallerSide) {
     EXPECT_EQ(scan->getTableName(), "small");
 }
 //---------------------------------------------------------------------------
+TEST(QueryFeatures, MorselScanKeepsInputOrder) {
+    Database db;
+    build(db, "create table seq (a integer not null);")->run(db);
+    for (int32_t value = 1; value <= 8; ++value) {
+        db.insertRow("seq", {Value(Integer(value))});
+    }
+    EXPECT_EQ(run(db, "select a from seq;"), "a\n1\n2\n3\n4\n5\n6\n7\n8\n");
+}
+//---------------------------------------------------------------------------
+TEST(QueryFeatures, PrimaryKeyLookup) {
+    Database db;
+    build(db, "create table item (id integer not null, v integer not null, primary key (id));")->run(db);
+    db.insertRow("item", {Value(Integer(1)), Value(Integer(10))});
+    db.insertRow("item", {Value(Integer(2)), Value(Integer(20))});
+    db.insertRow("item", {Value(Integer(3)), Value(Integer(30))});
+    EXPECT_THROW(db.insertRow("item", {Value(Integer(2)), Value(Integer(99))}), RuntimeException);
+
+    auto statement = build(db, "select v from item where id = 2;");
+    std::string output;
+    {
+        CaptureCout capture;
+        statement->run(db);
+        output = capture.str();
+    }
+    EXPECT_EQ(output, "v\n20\n");
+    auto* query = dynamic_cast<statement::QueryStatement*>(statement.get());
+    ASSERT_NE(query, nullptr);
+    auto* print = dynamic_cast<const algebra::Print*>(query->getTree());
+    ASSERT_NE(print, nullptr);
+    EXPECT_EQ(print->getInput()->getOperatorType(), algebra::Operator::OperatorType::TableScan);
+
+    build(db, "create table pair (a integer not null, b integer not null, v integer not null, primary key (a, b));")->run(db);
+    db.insertRow("pair", {Value(Integer(1)), Value(Integer(1)), Value(Integer(10))});
+    db.insertRow("pair", {Value(Integer(1)), Value(Integer(2)), Value(Integer(20))});
+    auto pairQuery = build(db, "select v from pair where b = 2 and a = 1;");
+    EXPECT_EQ(run(db, "select v from pair where b = 2 and a = 1;"), "v\n20\n");
+    auto* pairStatement = dynamic_cast<statement::QueryStatement*>(pairQuery.get());
+    ASSERT_NE(pairStatement, nullptr);
+    pairStatement->optimize(OptimizerPass::PredicatePushdown);
+    auto* pairPrint = dynamic_cast<const algebra::Print*>(pairStatement->getTree());
+    ASSERT_NE(pairPrint, nullptr);
+    EXPECT_EQ(pairPrint->getInput()->getOperatorType(), algebra::Operator::OperatorType::TableScan);
+}
+//---------------------------------------------------------------------------
 } // namespace test
 //---------------------------------------------------------------------------

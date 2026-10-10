@@ -53,6 +53,11 @@ class Select final : public UnaryOperator {
    void mergePredicate(std::unique_ptr<Expression> newPredicate);
 
    bool pushPredicate(std::unique_ptr<Expression>& predicate, OptimizerPass pass) override;
+
+   bool gavePredicateToChild() const { return gavePredicateToChild_; }
+
+   private:
+   bool gavePredicateToChild_ = false;
 };
 //---------------------------------------------------------------------------
 } // namespace imlab::algebra

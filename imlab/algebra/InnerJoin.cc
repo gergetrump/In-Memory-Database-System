@@ -210,6 +210,7 @@ bool InnerJoin::pushPredicate(std::unique_ptr<Expression>& predicate, OptimizerP
         } else {
             auto newSelect = std::make_unique<Select>(std::move(left_), std::move(combinedLeft));
             left_ = std::move(newSelect);
+            left_->optimize(left_, pass);
         }
         absorbed = true;
     }
@@ -222,6 +223,7 @@ bool InnerJoin::pushPredicate(std::unique_ptr<Expression>& predicate, OptimizerP
         } else {
             auto newSelect = std::make_unique<Select>(std::move(right_), std::move(combinedRight));
             right_ = std::move(newSelect);
+            right_->optimize(right_, pass);
         }
         absorbed = true;
     }

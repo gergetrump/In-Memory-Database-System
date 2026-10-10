@@ -30,18 +30,24 @@ Pushdown runs before `prepare`. Filters start as `Select` operators above the jo
 
 - A predicate whose columns all come from the left input is pushed onto the left. The same rule applies on the right.
 - A predicate that touches both inputs is attached to the join as its condition.
-- A predicate that reaches a scan, or another `Select`, stays there.
+- A predicate that reaches a scan stays there, unless it equates every primary-key column to a literal. That scan then probes the primary-key index. A predicate that reaches another `Select` stays there.
 - A `Select` that successfully pushed its predicate is removed.
 
 For `select * from foo f, bar b where f.a = b.b`, the equality uses both sides, so it becomes the join condition. A predicate such as `f.a = 20` in the same `WHERE` clause is pushed onto the `foo` scan and does not run after the join.
 
+## Scans
+
+A scan reads the table in morsels of at most 1024 rows. `tbb::parallel_for` runs those morsels on several threads. Each morsel keeps its own rows, and the morsels are then merged from first to last, so the consumer sees input order. A smaller table uses morsels of half its row count, and at least one row. A primary-key lookup does not scan.
+
 ## Hash join
 
-The generated join is a hash join. The left input is the build side: each row is inserted into a `LazyMultiMap` under the join key. The right input is the probe side: each row looks up `equal_range` and runs the join predicate on the matches.
-
-Rows are scanned in input order, and the hash chains keep that order, so matches come out in build-side order. The map is built once per query, in the generated function, and dropped when `execute` returns.
+The generated join is a hash join. The left input is the build side: each row is inserted into a `LazyMultiMap` under the join key. The right input is the probe side: each row looks up `equal_range` and runs the join predicate on the matches. The hash chains keep insertion order, so join matches come out in build-side order. The map is built once per query, in the generated function, and dropped when `execute` returns.
 
 After predicate pushdown, a join whose right input has fewer rows than its left input swaps the two inputs. The estimate is the row count of the underlying scan, including rows a filter will reject. A side whose size is not a plain scan is left where it is. The equality is then oriented so the build key belongs to the new left input. `./build/bench` can turn the pass off to time both orientations.
+
+## Primary-key index
+
+`CREATE TABLE` can name a primary key. `insertRow`, which `COPY` calls, hashes those columns and rejects a duplicate. A `WHERE` clause that equates every primary-key column to a literal is absorbed by the scan and probes that hash index. Any other predicate still reads the morsels and filters them.
 
 ## Hash aggregation
 

@@ -1,6 +1,7 @@
 //---------------------------------------------------------------------------
 #include "imlab/Database.h"
 #include "imlab/algebra/IU.h"
+#include "imlab/runtime/RuntimeException.h"
 
 //---------------------------------------------------------------------------
 
@@ -19,7 +20,25 @@ void Table::insertRow(const std::vector<Value>& newRow) {
     if (newRow.size() != tableSchema_.columns.size()) {
         throw std::runtime_error("Row size mismatch with column size");
     }
+    if (!tableSchema_.primary_key.empty()) {
+        std::vector<Value> key;
+        key.reserve(tableSchema_.primary_key.size());
+        for (const auto& column : tableSchema_.primary_key) {
+            key.push_back(newRow.at(tableColumnIndices_.at(column.id)));
+        }
+        if (!primaryKeyIndex_.emplace(std::move(key), tableRows_.size()).second) {
+            throw RuntimeException("duplicate primary key");
+        }
+    }
     tableRows_.push_back(newRow);
+}
+
+std::optional<size_t> Table::findPrimaryKey(const std::vector<Value>& key) const {
+    auto found = primaryKeyIndex_.find(key);
+    if (found == primaryKeyIndex_.end()) {
+        return std::nullopt;
+    }
+    return found->second;
 }
 
 void Database::createTable(const parser::Table& tableSchema) {

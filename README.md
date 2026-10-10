@@ -102,19 +102,21 @@ cmake --build build --target imlabdb tester bench
 
 ```text
 query                   rows    compile_ms    execute_ms    rows_per_s   cache  note
-scan                   10000         810.2           1.1       9131728    miss  cold
-scan                   10000           0.0           1.1       9457749     hit  warm
-scan                 1000000         839.9          78.5      12740098    miss  cold
-filter               1000000         869.0          12.1      82604234    miss  cold
-join                  200000        1123.4          31.2       6411524    miss  100k x 100k
-join-large-build      202000        1121.8          39.6       5106517    miss  build forced to large
-join-small-build      202000        1124.4           7.9      25416798    miss  build forced to small
-join-auto-build       202000           0.0           8.0      25243822     hit  build=small
-groupby               200000        1129.5          12.9      15535640    miss  100 groups
+scan                   10000        1109.9           1.6       6400684    miss  cold
+scan                   10000           0.0           0.8      12119376     hit  warm
+scan                 1000000        1063.7          69.4      14406956    miss  cold
+filter                 10000        1066.4           0.1      78457217    miss  cold
+filter               1000000        1073.4          11.2      89202422    miss  cold
+join                   20000        1566.6           3.1       6517133    miss  10k x 10k
+join                  200000        1503.3          29.6       6752052    miss  100k x 100k
+join-large-build      202000        1500.5          35.6       5668743    miss  build forced to large
+join-small-build      202000        1453.8           5.0      40799154    miss  build forced to small
+join-auto-build       202000           0.0           4.7      43234377     hit  build=small
+groupby               200000        1398.1           6.9      29164973    miss  100 groups
 ```
 
-Compiling a query takes about 0.8–1.1 seconds. Running it, at these sizes, takes 1–80 milliseconds. The second scan compiles nothing because the generated function was already loaded. A filter is faster than a scan of the same table because it returns one row. Building the 2,000-row side of a join instead of the 200,000-row side drops execution from 40 ms to 8 ms, and the automatic choice does that. It was a cache hit because that plan is the same function as the small-build join.
+Compiling a query takes about 1.1–1.6 seconds. Running it, at these sizes, takes under 70 milliseconds. The second scan compiles nothing because the generated function was already loaded. A filter is faster than a scan of the same table because it returns one row. Building the 2,000-row side of a join instead of the 200,000-row side drops execution from 36 ms to 5 ms, and the automatic choice does that. It was a cache hit because that plan is the same function as the small-build join.
 
 ## Limits
 
-Predicates are equalities. Joins are comma joins. `GROUP BY` supports integer columns, `COUNT(*)`, and `SUM` of an integer column. Rows live in memory. A repeated plan reuses its compiled library. There are no secondary indexes.
+Predicates are equalities. Joins are comma joins. `GROUP BY` supports integer columns, `COUNT(*)`, and `SUM` of an integer column. Rows live in memory. Scans run as parallel morsels and merge in input order. A primary-key equality probes a hash index. There are no secondary indexes. A repeated plan reuses its compiled library.

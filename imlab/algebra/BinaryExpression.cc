@@ -32,18 +32,15 @@ std::set<const IU*> BinaryExpression::collectIUs() const {
 }
 //---------------------------------------------------------------------------
 void BinaryExpression::produce(ostream& out) const {
-
-    left_->produce(out);
-    if (left_->getExpressionType() != ExpressionType::Const) {
-        out << "." << getAccessorFunction(left_->getType());
-    }
-
+    auto emit = [&](const Expression& expr) {
+        expr.produce(out);
+        if (expr.getExpressionType() == ExpressionType::IURef) {
+            out << "." << getAccessorFunction(expr.getType());
+        }
+    };
+    emit(*left_);
     out << " " << opToString(op_) << " ";
-
-    right_->produce(out);
-    if (right_->getExpressionType() != ExpressionType::Const) {
-        out << "." << getAccessorFunction(right_->getType());
-    }
+    emit(*right_);
 }
 
 void BinaryExpression::assignVarNames(const std::map<const IU*, std::string>& varNames) {

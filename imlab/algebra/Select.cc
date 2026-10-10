@@ -70,7 +70,12 @@ void Select::optimize(std::unique_ptr<Operator>& thisRef, imlab::OptimizerPass p
     }
 
     if (input_->pushPredicate(expression_, pass)) {
-        thisRef = std::move(input_);
+        auto* nested = dynamic_cast<Select*>(input_.get());
+        if (nested != nullptr && nested->gavePredicateToChild()) {
+            thisRef = nested->releaseInput();
+        } else {
+            thisRef = std::move(input_);
+        }
     }
 }
 
@@ -84,6 +89,15 @@ void Select::mergePredicate(std::unique_ptr<Expression> newPredicate) {
 
 bool Select::pushPredicate(std::unique_ptr<Expression>& predicate, OptimizerPass pass) {
     mergePredicate(std::move(predicate));
+    if (input_->pushPredicate(expression_, pass)) {
+        auto* nested = dynamic_cast<Select*>(input_.get());
+        if (nested != nullptr && nested->gavePredicateToChild()) {
+            input_ = nested->releaseInput();
+            gavePredicateToChild_ = true;
+        } else if (nested == nullptr) {
+            gavePredicateToChild_ = true;
+        }
+    }
     return true;
 }
 
