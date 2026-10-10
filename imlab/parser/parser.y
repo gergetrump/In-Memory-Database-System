@@ -129,7 +129,6 @@ imlab::parser::Parser::symbol_type yylex(imlab::parser::ParseContext& sc);
 SQLStatementListStart:
     SQLStatementList
     {
-        printf("Registering parse trees.\n");
         sc.registerAST(std::move($1));
     }
     ;
@@ -137,13 +136,11 @@ SQLStatementListStart:
 SQLStatementList:
     SQLStatementList SQLStatement
     {
-        printf("parser: Reducing SQLStatementList: Adding a new SQLStatement\n");
         $1.push_back(std::move($2));
         $$ = std::move($1);
     }
   | %empty
     {
-        printf("parser: Initializing an empty SQLStatementList\n");
         $$ = ASTPtrVector();
     }
     ;
@@ -151,17 +148,14 @@ SQLStatementList:
 SQLStatement:
     CreateTable
     {
-        printf("parser: SQLStatement -> CreateTable\n");
         $$ = std::move($1);
     }
   | CopyTable
     {
-        printf("parser: SQLStatement -> CopyTable\n");
         $$ = std::move($1);
     }
   | Query
     {
-        printf("parser: SQLStatement -> Query\n");
         $$ = std::move($1);
     }
     ;
@@ -311,7 +305,6 @@ ColumnConstraint:
 Query:
     SELECT SelectList FROM TableRefList OptionalWhereClause SEMICOLON
     {
-        printf("parser: SELECT Query: Columns=%lu, Tables=%lu\n", $2.size(), $4.size());
         $$ = std::make_unique<imlab::parser::Query>(std::move($2), std::move($4), std::move($5));
     }
     ;
@@ -327,12 +320,10 @@ Subquery:
 SelectList:
     STAR
     {
-        printf("parser: SelectList: SELECT *\n");
         $$ = ASTPtrVector();
     }
   | ColIdList
     {
-        printf("parser: SelectList: SELECT specific columns\n");
         $$ = std::move($1);
     }
     ;
@@ -340,13 +331,11 @@ SelectList:
 ColIdList:
     ColIdList COMMA ColId
     {
-        printf("parser: Adding a column to ColIdList\n");
         $1.push_back(std::move($3));
         $$ = std::move($1);
     }
   | ColId
     {
-        printf("parser: Initializing ColIdList with a single column\n");
         $$ = ASTPtrVector();
         $$.push_back(std::move($1));
     }
@@ -355,12 +344,10 @@ ColIdList:
 ColId:
     IDENTIFIER DOT IDENTIFIER
     {
-        printf("parser: ColId: Table = '%s', Column = '%s'\n", $1.c_str(), $3.c_str());
         $$ = std::make_unique<imlab::parser::ColId>($1, $3);
     }
   | IDENTIFIER
     {
-        printf("parser: ColId: Column = '%s'\n", $1.c_str());
         $$ = std::make_unique<imlab::parser::ColId>("", $1);
     }
     ;
@@ -368,13 +355,11 @@ ColId:
 TableRefList:
     TableRefList COMMA TableRef
     {
-        printf("parser: Adding a table reference to TableRefList\n");
         $1.push_back(std::move($3));
         $$ = std::move($1);
     }
   | TableRef
     {
-        printf("parser: Adding a table reference to TableRefList\n");
         $$ = ASTPtrVector();
         $$.push_back(std::move($1));
     }
@@ -383,22 +368,18 @@ TableRefList:
 TableRef:
     IDENTIFIER IDENTIFIER
     {
-        printf("parser: TableRef: Table='%s', Alias='%s'\n", $1.c_str(), $2.c_str());
         $$ = std::make_unique<imlab::parser::TableRef>($1, $2);
     }
   | IDENTIFIER
     {
-        printf("parser: TableRef: Table='%s'\n", $1.c_str());
         $$ = std::make_unique<imlab::parser::TableRef>($1, "");
     }
   | LPAREN Subquery RPAREN IDENTIFIER
     {
-        printf("parser: SubqueryRef: Subquery with alias '%s'\n", $4.c_str());
         $$ = std::make_unique<imlab::parser::SubqueryRef>(std::move($2), $4);
     }
   | LPAREN Subquery RPAREN
     {
-        printf("parser: SubqueryRef: Subquery with no alias\n");
         $$ = std::make_unique<imlab::parser::SubqueryRef>(std::move($2), "");
     }
     ;

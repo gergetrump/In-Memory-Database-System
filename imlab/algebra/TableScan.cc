@@ -25,7 +25,7 @@ void TableScan::prepare(const std::set<const IU*>& required, Operator* consumer)
         if (required.find(iu) != required.end()) {
             requiredIUs_.insert(iu);
 
-            std::string varName = std::string(table_) + "_" + iu->column_;
+            std::string varName = tableSchema_.id + "_" + iu->column_;
             varNames_[iu] = varName;
         }
     }
@@ -36,13 +36,12 @@ void TableScan::produce(std::ostream& code) {
     code << "   // start TableScan::produce\n";
 
     code << "   {\n";
-    code << "       auto& table = db.getTable(\"" << table_ << "\");\n";
+    code << "       auto& table = db.getTable(\"" << tableSchema_.id << "\");\n";
     code << "       auto& rows = table.getRows();\n";
     code << "       auto& columnIndices = table.getColumnIndices();\n";
 
-    code << "       tbb::parallel_for(tbb::blocked_range<size_t>(0, rows.size()), [&](const tbb::blocked_range<size_t>& range) {\n";
-    code << "           for (size_t i = range.begin(); i < range.end(); ++i) {\n";
-    code << "               const auto& row = rows[i];\n";
+    code << "       for (size_t i = 0; i < rows.size(); ++i) {\n";
+    code << "           const auto& row = rows[i];\n";
 
     for (const auto* iu : requiredIUs_) {
         std::string varName = varNames_[iu];
@@ -51,8 +50,7 @@ void TableScan::produce(std::ostream& code) {
 
     consumer_->consume(code, this);
 
-    code << "           }\n";
-    code << "       });\n";
+    code << "       }\n";
     code << "   }\n";
 
 

@@ -1,10 +1,13 @@
 #ifndef CODEGENHELPER_H
 #define CODEGENHELPER_H
 
-#include <string>
-#include <fstream>
+#include "imlab/runtime/RuntimeException.h"
+#include "imlab/statement/CodeGenConfig.h"
+
 #include <cstdlib>
 #include <dlfcn.h>
+#include <fstream>
+#include <string>
 
 class CodeGenHelper {
 public:
@@ -13,11 +16,16 @@ public:
 
     void compile() {
         writeToFile();
-        std::string compileCommand = "g++ -shared -fPIC -o " + sharedLibName_ + " " + tempFileName_ +
-                                " -I/home/parallels/CLionProjects/tasks.cpp" +
-                                " -L/home/parallels/CLionProjects/tasks.cpp/cmake-build-debug" +
-                                " -limlab";
-        int compileResult = system(compileCommand.c_str());
+        const std::string compileCommand =
+            std::string(IMLAB_CXX_COMPILER) +
+            " -shared -fPIC -std=c++20 " +
+            IMLAB_CODEGEN_CXX_FLAGS +
+            " -o \"" + sharedLibName_ + "\" \"" + tempFileName_ + "\"" +
+            " -I\"" + std::string(IMLAB_SOURCE_DIR) + "\"" +
+            " -L\"" + std::string(IMLAB_LIBRARY_DIR) + "\"" +
+            " -limlab " +
+            IMLAB_CODEGEN_LINK_FLAGS;
+        const int compileResult = system(compileCommand.c_str());
         if (compileResult != 0) {
             throw imlab::RuntimeException("Compilation failed");
         }

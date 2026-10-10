@@ -10,6 +10,10 @@
 #include <unordered_map>
 #include <vector>
 
+#ifndef IMLAB_DATA_DIR
+#define IMLAB_DATA_DIR "data"
+#endif
+
 //---------------------------------------------------------------------------
 namespace statictpcc {
 //---------------------------------------------------------------------------
@@ -159,14 +163,14 @@ struct TupleHash {
         return std::get<0>(key).hash()
         ^ std::get<1>(key).hash() << 1
         ^ std::get<2>(key).hash() << 2
-        ^ std::get<2>(key).hash() << 3;
+        ^ std::get<3>(key).hash() << 3;
     }
     size_t operator()(const std::tuple<imlab::Integer, imlab::Integer, imlab::Integer, imlab::Integer, imlab::Integer>& key) const {
         return std::get<0>(key).hash()
         ^ std::get<1>(key).hash() << 1
         ^ std::get<2>(key).hash() << 2
-        ^ std::get<2>(key).hash() << 3
-        ^ std::get<2>(key).hash() << 4;
+        ^ std::get<3>(key).hash() << 3
+        ^ std::get<4>(key).hash() << 4;
     }
 };
 
@@ -209,7 +213,7 @@ class TPCC {
     void LoadWarehouse(std::istream& in);
 
     // Call the load methods from above to load the full TPCC data
-    void LoadTPCC(const std::string& directory= "/home/parallels/CLionProjects/tasks.cpp/data");
+    void LoadTPCC(const std::string& directory = IMLAB_DATA_DIR);
 
     // Returns the number of tuples in a relation.
     template <statictpcc::Relation>

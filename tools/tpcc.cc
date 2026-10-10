@@ -84,7 +84,18 @@ void REPL(statictpcc::TPCC& data) {
             continue;
         }
         if (line.find("LOAD tpcc FROM") == 0) {
-            std::string directory = line.substr(0, line.find_first_of('/'));
+            const std::string prefix = "LOAD tpcc FROM";
+            std::string directory = line.substr(prefix.size());
+            const auto first = directory.find_first_not_of(" \t");
+            if (first == std::string::npos) {
+                std::cerr << "Invalid input" << '\n';
+                continue;
+            }
+            directory.erase(0, first);
+            const auto last = directory.find_last_not_of(" \t\r");
+            if (last != std::string::npos) {
+                directory.erase(last + 1);
+            }
             data.LoadTPCC(directory);
         } else if (line.find("EXECUTE neworder") == 0) {
             RandomNewOrder(statictpcc::NewOrder, data);

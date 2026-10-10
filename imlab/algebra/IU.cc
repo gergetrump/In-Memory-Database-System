@@ -24,14 +24,11 @@ const IU* Scope::resolveIU(const std::string& tableName, const std::string& colu
         auto iter = ius_.find(tableName);
         if (iter != ius_.end()) {
             for (auto& iuMap : iter->second) {
-                printf("Checking column '%s' in alias '%s'.\n", iuMap.iu->column_.c_str(), iuMap.alias.c_str());
                 if (iuMap.iu->column_ == columnName) {
-                    printf("Resolved column '%s' in alias '%s'.\n", columnName.c_str(), tableName.c_str());
                     return iuMap.iu;
                 }
             }
         }
-        printf("Column '%s' not found in alias '%s'.\n", columnName.c_str(), tableName.c_str());
     } else {
         const IU* foundIU = nullptr;
         for (auto& [alias, iuMaps] : ius_) {
@@ -46,11 +43,8 @@ const IU* Scope::resolveIU(const std::string& tableName, const std::string& colu
         }
         if (foundIU) {
             return foundIU;
-        } else {
-            printf("Column '%s' not found in any table.\n", columnName.c_str());
         }
     }
-    printf("Column '%s' not resolved.\n", columnName.c_str());
     return nullptr;
 }
 

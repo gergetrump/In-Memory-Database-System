@@ -6,12 +6,12 @@ find_program(CLANG_TIDY_EXECUTABLE
 )
 
 if(NOT CLANG_TIDY_EXECUTABLE)
-    message(FATAL_ERROR "clang-tidy not found")
+    message(STATUS "clang-tidy not found; lint targets will be empty")
 endif()
 
 # Add target to lint the given source files
 function(add_clang_tidy_target TARGET INPUT)
-    if(NOT INPUT)
+    if(NOT CLANG_TIDY_EXECUTABLE OR NOT INPUT)
         add_custom_target(${TARGET})
         return()
     endif()

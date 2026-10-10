@@ -62,12 +62,18 @@ void CopyTableStatement::run(Database& db) {
             }
 
             case imlab::Type::kChar: {
-                code << "          rowTypedValues.emplace_back(imlab::Value(std::string(imlab::Char<" << col.type.getLength() << ">::castString(rowStrValues[" << i << "].c_str(), rowStrValues[" << i << "].size()).begin(), imlab::Char<" << col.type.getLength() << ">::castString(rowStrValues[" << i << "].c_str(), rowStrValues[" << i << "].size()).end()), imlab::Type::Char(" << col.type.getLength() << ")));\n";
+                code << "          {\n";
+                code << "            auto field = imlab::Char<" << col.type.getLength() << ">::castString(rowStrValues[" << i << "].c_str(), rowStrValues[" << i << "].size());\n";
+                code << "            rowTypedValues.emplace_back(imlab::Value(std::string(field.begin(), field.end()), imlab::Type::Char(" << col.type.getLength() << ")));\n";
+                code << "          }\n";
                 break;
             }
 
             case imlab::Type::kVarchar: {
-                code << "          rowTypedValues.emplace_back(imlab::Value(std::string(imlab::Varchar<" << col.type.getLength() << ">::castString(rowStrValues[" << i << "].c_str(), rowStrValues[" << i << "].size()).begin(), imlab::Varchar<" << col.type.getLength() << ">::castString(rowStrValues[" << i << "].c_str(), rowStrValues[" << i << "].size()).end()), imlab::Type::Varchar(" << col.type.getLength() << ")));\n";
+                code << "          {\n";
+                code << "            auto field = imlab::Varchar<" << col.type.getLength() << ">::castString(rowStrValues[" << i << "].c_str(), rowStrValues[" << i << "].size());\n";
+                code << "            rowTypedValues.emplace_back(imlab::Value(std::string(field.begin(), field.end()), imlab::Type::Varchar(" << col.type.getLength() << ")));\n";
+                code << "          }\n";
                 break;
             }
         }

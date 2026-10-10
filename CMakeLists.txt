@@ -35,6 +35,8 @@ endif ()
 if (APPLE)
     list(APPEND CMAKE_PREFIX_PATH /usr/local/opt/bison)
     list(APPEND CMAKE_PREFIX_PATH /usr/local/opt/flex)
+    list(APPEND CMAKE_PREFIX_PATH /opt/homebrew/opt/bison)
+    list(APPEND CMAKE_PREFIX_PATH /opt/homebrew/opt/flex)
 endif (APPLE)
 
 # ---------------------------------------------------------------------------
@@ -184,9 +186,49 @@ set(TOOLS_CC
 # Targets
 # ---------------------------------------------------------------------------
 
+set(IMLAB_CODEGEN_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+if (CMAKE_BUILD_TYPE)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" IMLAB_BUILD_TYPE_UPPER)
+    set(IMLAB_CODEGEN_CXX_FLAGS "${IMLAB_CODEGEN_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${IMLAB_BUILD_TYPE_UPPER}}")
+endif ()
+
+set(IMLAB_TBB_TARGET tbb)
+if (NOT TARGET tbb AND TARGET TBB::tbb)
+    set(IMLAB_TBB_TARGET TBB::tbb)
+endif ()
+get_target_property(IMLAB_TBB_INCLUDES ${IMLAB_TBB_TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+if (IMLAB_TBB_INCLUDES)
+    foreach (IMLAB_TBB_INCLUDE ${IMLAB_TBB_INCLUDES})
+        string(APPEND IMLAB_CODEGEN_CXX_FLAGS " -I${IMLAB_TBB_INCLUDE}")
+    endforeach ()
+endif ()
+
+set(IMLAB_TBB_LIB "")
+get_target_property(IMLAB_TBB_LIB ${IMLAB_TBB_TARGET} IMPORTED_LOCATION)
+if (NOT IMLAB_TBB_LIB)
+    get_target_property(IMLAB_TBB_LIB ${IMLAB_TBB_TARGET} IMPORTED_LOCATION_RELEASE)
+endif ()
+if (NOT IMLAB_TBB_LIB)
+    get_target_property(IMLAB_TBB_LIB ${IMLAB_TBB_TARGET} IMPORTED_LOCATION_DEBUG)
+endif ()
+if (IMLAB_TBB_LIB)
+    get_filename_component(IMLAB_TBB_LIBDIR "${IMLAB_TBB_LIB}" DIRECTORY)
+    set(IMLAB_CODEGEN_LINK_FLAGS "-L${IMLAB_TBB_LIBDIR} -ltbb")
+else ()
+    set(IMLAB_CODEGEN_LINK_FLAGS "-ltbb")
+endif ()
+
+configure_file(
+        ${CMAKE_SOURCE_DIR}/imlab/statement/CodeGenConfig.h.in
+        ${CMAKE_BINARY_DIR}/imlab/statement/CodeGenConfig.h
+        @ONLY
+)
+add_compile_definitions("IMLAB_DATA_DIR=\"${CMAKE_SOURCE_DIR}/data\"")
+
 add_library(imlab STATIC ${SRC_CC} ${generated_cc})
 add_dependencies(imlab parser)
-target_link_libraries(imlab fmt Threads::Threads tbb)
+target_include_directories(imlab PRIVATE ${CMAKE_BINARY_DIR})
+target_link_libraries(imlab fmt Threads::Threads TBB::tbb)
 
 add_executable(tpcc ${TPCC_TOOLS_CC} tools/tpcc.cc)
 target_link_libraries(tpcc imlab gflags Threads::Threads)

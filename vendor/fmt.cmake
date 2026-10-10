@@ -13,6 +13,9 @@ ExternalProject_Add(
         GIT_TAG 0c9fce2ffefecfdce794e1859584e25877b7b592
         TIMEOUT 10
         CMAKE_ARGS
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DFMT_TEST=OFF
+        -DFMT_DOC=OFF
         -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/vendor/fmt
         #        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}

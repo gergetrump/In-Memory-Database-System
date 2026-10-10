@@ -26,19 +26,9 @@ std::vector<std::unique_ptr<AST>> ParseContext::Parse(std::istream& in) {
     // make sure that endScan is called even if an exception is thrown
     Defer d([&]() { endScan(); });
 
-    printf("ParseContext::Parse: Starting parsing.\n");
-
     Parser parser(*this);
     parser.set_debug_level(trace_parsing_);
-    int result = parser.parse();
-
-    printf("ParseContext::Parse: Parser returned %d\n", result);
-
-    printf("ParseContext::Parse: parseTrees.size() = %lu\n", parseTrees.size());
-
-    for (size_t i = 0; i < parseTrees.size(); ++i) {
-        printf("ParseContext::Parse: parseTrees[%lu]->getType() = %d\n", i, parseTrees[i]->getType());
-    }
+    parser.parse();
 
     return std::move(parseTrees);
 }

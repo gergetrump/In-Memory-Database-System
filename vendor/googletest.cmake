@@ -26,6 +26,7 @@ ExternalProject_Add(
         SOURCE_DIR "vendor/gtm/src/googletest/googletest"
         INSTALL_DIR "vendor/gtm/gtest"
         CMAKE_ARGS
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/vendor/gtm/gtest
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
@@ -43,6 +44,7 @@ ExternalProject_Add(
         SOURCE_DIR "vendor/gtm/src/googletest/googlemock"
         INSTALL_DIR "vendor/gtm/gmock"
         CMAKE_ARGS
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/vendor/gtm/gmock
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}

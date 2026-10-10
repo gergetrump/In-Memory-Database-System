@@ -32,8 +32,8 @@ int main() {
 
 
         if (line.find(';') != std::string::npos) {
-            // Run the parser on the input
-            std::istringstream inputStream(line);
+            // Run the parser on the full statement, including earlier lines.
+            std::istringstream inputStream(fullInput);
             parser::ParseContext parseContext;
             std::vector<std::unique_ptr<parser::AST>> astList;
 

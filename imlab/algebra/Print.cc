@@ -41,7 +41,7 @@ void Print::produce(std::ostream& code) {
     for (size_t i = 0; i < output_.size(); ++i) {
         code << "\"" << output_[i].name_ << "\"";
         if (i < output_.size() - 1) {
-            code << " << \"\\t\" << ";
+            code << " << \", \" << ";
         }
     }
 
@@ -57,10 +57,17 @@ void Print::consume(std::ostream& code, const Operator* child) {
     code << "               std::cout << ";
 
     for (size_t i = 0; i < output_.size(); ++i) {
-        output_[i].expr_->produce(code);
-        code << "." << Expression::getAccessorFunction(output_[i].expr_->getType());
+        const auto& type = output_[i].expr_->getType();
+        if (type.getClass() == imlab::Type::kNumeric) {
+            code << "imlab::Numeric<" << type.getPrecision() << ", " << type.getScale() << ">(";
+            output_[i].expr_->produce(code);
+            code << ".getNumericRawValue())";
+        } else {
+            output_[i].expr_->produce(code);
+            code << "." << Expression::getAccessorFunction(type);
+        }
         if (i < output_.size() - 1) {
-            code << " << \"\\t\" << ";
+            code << " << \", \" << ";
         }
     }
 

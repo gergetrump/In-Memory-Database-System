@@ -8,8 +8,6 @@
 #include "imlab/infra/Hash.h"
 #include <algorithm>
 #include <iterator>
-#include <tbb/parallel_for.h>
-#include <tbb/spin_mutex.h>
 #include <utility>
 #include <vector>
 #include <tbb/enumerable_thread_specific.h>
@@ -123,15 +121,13 @@ class LazyMultiMap {
             }
         }
 
-        std::vector<tbb::spin_mutex> locks(hashTableSize);
-
-        tbb::parallel_for(size_t(0), combined.size(), [&](size_t i) {
+        // Prepend from the back so equal_range walks entries in insert order.
+        for (size_t i = combined.size(); i-- > 0;) {
             Entry *e = combined[i];
             uint32_t h = e->key_.Hash() & hash_table_mask_;
-            tbb::spin_mutex::scoped_lock lock(locks[h]);
             e->next_ = hash_table_[h];
             hash_table_[h] = e;
-        });
+        }
     }
 
     // To find an element, calculate the hash (Key::Hash), and search this list until you reach a nullptr;

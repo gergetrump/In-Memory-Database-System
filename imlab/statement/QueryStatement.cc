@@ -19,6 +19,8 @@ QueryStatement::QueryStatement(unique_ptr<algebra::Operator> tree) : Statement(S
 QueryStatement::~QueryStatement() = default;
 //---------------------------------------------------------------------------
 void QueryStatement::run(Database& db) {
+    optimize(imlab::OptimizerPass::PredicatePushdown);
+
     std::set<const algebra::IU*> requiredIUs;
     tree->prepare(requiredIUs, nullptr);
 
